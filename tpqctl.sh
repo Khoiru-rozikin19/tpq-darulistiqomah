@@ -21,7 +21,7 @@ set -uo pipefail
 # ─────────────────────────────────────────────
 APP_DIR="/var/www/tpq"
 APP_USER="www-data"
-PHP_VERSION="8.3"
+PHP_VERSION="8.4"
 CONFIG_FILE="${APP_DIR}/.tpqctl.conf"
 VERSION="1.0.0"
 

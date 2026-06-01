@@ -3,7 +3,7 @@
 # ============================================================================
 #  SETUP SCRIPT - Sistem Keuangan Madrasah Darul Istiqomah
 #  Target: Ubuntu 24.04 LTS (DigitalOcean VPS)
-#  Stack : Nginx + PHP 8.3 + SQLite + Node.js 22 + Let's Encrypt SSL
+#  Stack : Nginx + PHP 8.4 + SQLite + Node.js 22 + Let's Encrypt SSL
 # ============================================================================
 #
 #  PETUNJUK PENGGUNAAN:
@@ -53,7 +53,7 @@ fi
 echo ""
 echo -e "${BOLD}╔═══════════════════════════════════════════════════════════╗${NC}"
 echo -e "${BOLD}║   🕌  Installer Sistem Keuangan Darul Istiqomah  🕌     ║${NC}"
-echo -e "${BOLD}║   Ubuntu 24.04 + Nginx + PHP 8.3 + SQLite + SSL         ║${NC}"
+echo -e "${BOLD}║   Ubuntu 24.04 + Nginx + PHP 8.4 + SQLite + SSL         ║${NC}"
 echo -e "${BOLD}╚═══════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
@@ -96,7 +96,7 @@ fi
 # ─────────────────────────────────────────────
 APP_DIR="/var/www/tpq"
 APP_USER="www-data"
-PHP_VERSION="8.3"
+PHP_VERSION="8.4"
 
 # ─────────────────────────────────────────────
 #  STEP 1: UPDATE SISTEM & INSTALL DEPENDENSI
@@ -122,11 +122,11 @@ apt-get install -y \
 success "Dependensi dasar terinstal."
 
 # ─────────────────────────────────────────────
-#  STEP 2: INSTALL PHP 8.3
+#  STEP 2: INSTALL PHP 8.4
 # ─────────────────────────────────────────────
 step "2/9 - Menginstal PHP ${PHP_VERSION} & Ekstensi yang Dibutuhkan"
 
-# Tambah PPA Ondrej jika PHP 8.3 belum tersedia
+# Tambah PPA Ondrej jika PHP 8.4 belum tersedia
 if ! command -v php${PHP_VERSION} &> /dev/null; then
     add-apt-repository -y ppa:ondrej/php
     apt-get update -y
@@ -159,6 +159,20 @@ sed -i "s/^;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/" "$PHP_INI"
 
 systemctl restart php${PHP_VERSION}-fpm
 systemctl enable php${PHP_VERSION}-fpm
+
+# Set default CLI php version
+update-alternatives --set php /usr/bin/php${PHP_VERSION} || true
+
+# Stop dan disable versi php-fpm lama agar hemat RAM pada VPS 1GB
+for old_ver in "8.1" "8.2" "8.3"; do
+    if [[ "$old_ver" != "$PHP_VERSION" ]]; then
+        if systemctl is-active --quiet php${old_ver}-fpm; then
+            info "Menghentikan layanan php${old_ver}-fpm untuk menghemat RAM..."
+            systemctl stop php${old_ver}-fpm || true
+            systemctl disable php${old_ver}-fpm || true
+        fi
+    fi
+done
 
 success "PHP ${PHP_VERSION}-FPM terinstal dan dikonfigurasi."
 
