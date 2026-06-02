@@ -136,7 +136,7 @@
                 <span class="font-bold text-slate-700 block underline decoration-dotted">{{ $payment->santri->nama_wali }}</span>
             </div>
             <div>
-                <span class="text-slate-400 block mb-1">Jakarta, {{ $payment->tanggal_bayar->format('d F Y') }}</span>
+                <span class="text-slate-400 block mb-1">Tanjung Makmur, {{ $payment->tanggal_bayar->locale('id')->translatedFormat('d F Y') }}</span>
                 <span class="text-slate-400 block mb-10">Petugas Keuangan TU</span>
                 <span id="signer-name" class="font-bold text-slate-700 block underline">{{ $defaultPetugas ? $defaultPetugas->nama : $payment->user->name }}</span>
             </div>
