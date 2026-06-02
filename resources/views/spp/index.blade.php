@@ -11,9 +11,14 @@
             <h3 class="text-base font-bold text-slate-800 heading-font">Riwayat Pembayaran SPP</h3>
             <p class="text-xs text-slate-400">Total pencatatan transaksi SPP: {{ $payments->total() }} pembayaran</p>
         </div>
-        <a href="{{ route('spp.create') }}" class="inline-flex items-center justify-center px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl text-xs transition-all hover:shadow-lg hover:shadow-blue-500/10 active:scale-[0.98] heading-font">
-            💸 Catat SPP Masuk
-        </a>
+        <div class="flex flex-wrap items-center gap-3">
+            <a href="{{ route('spp.billing') }}" class="inline-flex items-center justify-center px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-2xl text-xs transition-all hover:shadow-lg hover:shadow-emerald-500/10 active:scale-[0.98] heading-font">
+                📲 Tagihan WhatsApp
+            </a>
+            <a href="{{ route('spp.create') }}" class="inline-flex items-center justify-center px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl text-xs transition-all hover:shadow-lg hover:shadow-blue-500/10 active:scale-[0.98] heading-font">
+                💸 Catat SPP Masuk
+            </a>
+        </div>
     </div>
 
     <!-- Filter Form -->

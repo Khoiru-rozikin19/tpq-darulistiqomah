@@ -27,6 +27,9 @@ Route::middleware(['auth'])->group(function () {
     // Santri CRUD
     Route::resource('santri', SantriController::class);
 
+    // SPP Payments Billing
+    Route::get('spp/billing', [SppController::class, 'billing'])->name('spp.billing');
+
     // SPP Payments CRUD
     Route::resource('spp', SppController::class)->except(['edit', 'update']);
 

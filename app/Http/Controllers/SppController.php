@@ -115,6 +115,53 @@ class SppController extends Controller
             ->with('success', 'Pembayaran SPP berhasil dicatat dan masuk ke kas.');
     }
 
+    public function billing(Request $request)
+    {
+        $search = $request->input('search');
+        $bulan = $request->input('bulan', date('n'));
+        
+        $currentYear = date('Y');
+        $currentMonth = date('n');
+        $tahunAjaranDefault = $currentMonth >= 7 
+            ? $currentYear . '/' . ($currentYear + 1) 
+            : ($currentYear - 1) . '/' . $currentYear;
+        
+        $tahunAjaran = $request->input('tahun_ajaran', $tahunAjaranDefault);
+
+        $query = Santri::where('status', 'aktif');
+
+        // Filter out those who have paid
+        $query->whereDoesntHave('sppPayments', function ($q) use ($bulan, $tahunAjaran) {
+            $q->where('bulan', $bulan)
+              ->where('tahun_ajaran', $tahunAjaran);
+        });
+
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('nama', 'like', "%{$search}%")
+                  ->orWhere('nis', 'like', "%{$search}%")
+                  ->orWhere('kelas', 'like', "%{$search}%");
+            });
+        }
+
+        $santris = $query->orderBy('nama', 'asc')->get();
+
+        $tahunAjarans = SppPayment::select('tahun_ajaran')->distinct()->pluck('tahun_ajaran')->all();
+        if (empty($tahunAjarans)) {
+            $tahunAjarans = [$tahunAjaranDefault];
+        } elseif (!in_array($tahunAjaranDefault, $tahunAjarans)) {
+            $tahunAjarans[] = $tahunAjaranDefault;
+        }
+
+        $namaBulanList = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+        ];
+
+        return view('spp.billing', compact('santris', 'tahunAjarans', 'search', 'bulan', 'tahunAjaran', 'namaBulanList'));
+    }
+
     public function show($id)
     {
         $payment = SppPayment::with('santri', 'user')->findOrFail($id);
