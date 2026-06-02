@@ -19,14 +19,14 @@ class DatabaseSeeder extends Seeder
     {
         // 1. Seed Users
         $admin = User::create([
-            'name' => 'Admin TU (Ustadz Ahmad)',
+            'name' => 'Admin TU',
             'email' => 'admin@darulistiqomah.com',
             'password' => Hash::make('password'),
             'role' => 'admin_tu',
         ]);
 
         $kepala = User::create([
-            'name' => 'Kepala Madrasah (K.H. Rahmat)',
+            'name' => 'Kepala Madrasah (Ust. Zainal Ghorib)',
             'email' => 'kepala@darulistiqomah.com',
             'password' => Hash::make('password'),
             'role' => 'kepala_madrasah',
