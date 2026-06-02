@@ -669,15 +669,42 @@ do_create_user() {
     fi
 
     echo ""
+    echo -e "  Jenis Kelamin (L/P):"
+    echo -e "    ${CYAN}L${NC}) Laki-laki"
+    echo -e "    ${CYAN}P${NC}) Perempuan"
+    read -rp "$(echo -e "  Pilihan [L/P]: ")" gender_choice
+    gender_choice=$(echo "$gender_choice" | tr '[:lower:]' '[:upper:]')
+    if [[ "$gender_choice" != "L" && "$gender_choice" != "P" ]]; then
+        fail "Pilihan jenis kelamin tidak valid (harus L atau P)."
+        return 1
+    fi
+
+    echo ""
     echo -e "  Pilih Role/Jabatan:"
     echo -e "    ${CYAN}1${NC}) Admin TU"
     echo -e "    ${CYAN}2${NC}) Kepala Madrasah"
-    read -rp "$(echo -e "  Pilihan [1/2]: ")" role_choice
+    echo -e "    ${CYAN}3${NC}) Guru"
+    echo -e "    ${CYAN}4${NC}) Bendahara"
+    read -rp "$(echo -e "  Pilihan [1-4]: ")" role_choice
 
-    local input_role
+    local input_role input_jabatan
     case "$role_choice" in
-        1) input_role="admin_tu" ;;
-        2) input_role="kepala_madrasah" ;;
+        1)
+            input_role="admin_tu"
+            input_jabatan="Admin TU"
+            ;;
+        2)
+            input_role="kepala_madrasah"
+            input_jabatan="Kepala Madrasah"
+            ;;
+        3)
+            input_role="guru"
+            input_jabatan="Guru"
+            ;;
+        4)
+            input_role="bendahara"
+            input_jabatan="Bendahara"
+            ;;
         *)
             fail "Pilihan role tidak valid."
             return 1
@@ -685,7 +712,7 @@ do_create_user() {
     esac
 
     echo ""
-    info "Sedang membuat user di database..."
+    info "Sedang membuat user & pegawai di database..."
 
     cd "$APP_DIR"
 
@@ -701,11 +728,19 @@ if (\$user) {
     echo "EXISTS";
     exit(1);
 }
+// Create User
 App\Models\User::create([
     'name' => '$escaped_name',
     'email' => \$email,
     'password' => Illuminate\Support\Facades\Hash::make('$input_password'),
     'role' => '$input_role',
+]);
+// Create Pegawai
+App\Models\Pegawai::create([
+    'nama' => '$escaped_name',
+    'jenis_kelamin' => '$gender_choice',
+    'jabatan' => '$input_jabatan',
+    'status' => 'aktif',
 ]);
 echo "SUCCESS";
 EOF
@@ -717,9 +752,87 @@ EOF
     if [[ "$result" == *"EXISTS"* ]]; then
         fail "Email '${input_email}' sudah terdaftar!"
     elif [[ "$result" == *"SUCCESS"* ]]; then
-        success "User '${input_name}' dengan role '${input_role}' berhasil dibuat!"
+        success "User & Pegawai '${input_name}' (${input_jabatan}) berhasil dibuat!"
     else
         fail "Gagal membuat user."
+        echo -e "  Detail error: ${DIM}${result}${NC}"
+    fi
+    echo ""
+}
+
+# ═════════════════════════════════════════════
+#  8. HAPUS USER
+# ═════════════════════════════════════════════
+do_delete_user() {
+    show_header
+    echo -e "  ${BOLD}❌ HAPUS USER & PEGAWAI${NC}"
+    divider
+    echo ""
+
+    read -rp "$(echo -e "  Masukkan Email User yang akan dihapus: ")" input_email
+    if [[ -z "$input_email" ]]; then
+        fail "Email tidak boleh kosong."
+        return 1
+    fi
+
+    cd "$APP_DIR"
+
+    # Periksa apakah user ada
+    local check_code
+    check_code=$(cat <<EOF
+\$user = App\Models\User::where('email', '$input_email')->first();
+if (\$user) {
+    echo "FOUND:" . \$user->name . " (Role: " . \$user->role . ")";
+} else {
+    echo "NOT_FOUND";
+}
+EOF
+)
+    local check_result
+    check_result=$(php artisan tinker --execute="$check_code" 2>&1)
+
+    if [[ "$check_result" == *"NOT_FOUND"* ]]; then
+        fail "User dengan email '${input_email}' tidak ditemukan."
+        return 1
+    fi
+
+    # Parsing nama dan role
+    local user_info
+    user_info=$(echo "$check_result" | grep "FOUND:")
+    echo -e "  ${YELLOW}User ditemukan:${NC} ${user_info#FOUND:}"
+    echo ""
+    warn "Perhatian: Menghapus user ini juga akan menghapus data pegawai yang sesuai."
+    read -rp "$(echo -e "  Apakah Anda yakin ingin menghapus? (y/n): ")" confirm_delete
+
+    if [[ "$confirm_delete" != "y" && "$confirm_delete" != "Y" ]]; then
+        info "Penghapusan dibatalkan."
+        return 0
+    fi
+
+    echo ""
+    info "Sedang menghapus user dan data pegawai..."
+
+    local delete_code
+    delete_code=$(cat <<EOF
+\$user = App\Models\User::where('email', '$input_email')->first();
+if (\$user) {
+    \$name = \$user->name;
+    \$user->delete();
+    App\Models\Pegawai::where('nama', \$name)->delete();
+    echo "SUCCESS";
+} else {
+    echo "NOT_FOUND";
+}
+EOF
+)
+
+    local result
+    result=$(php artisan tinker --execute="$delete_code" 2>&1)
+
+    if [[ "$result" == *"SUCCESS"* ]]; then
+        success "User dengan email '${input_email}' beserta data pegawainya berhasil dihapus!"
+    else
+        fail "Gagal menghapus user."
         echo -e "  Detail error: ${DIM}${result}${NC}"
     fi
     echo ""
@@ -744,7 +857,8 @@ show_menu() {
     echo -e "    ${CYAN}${BOLD}4${NC})  🗑️   Uninstall Website"
     echo -e "    ${CYAN}${BOLD}5${NC})  ♻️   Restart Semua Layanan"
     echo -e "    ${CYAN}${BOLD}6${NC})  📋  Lihat Log Laravel"
-    echo -e "    ${CYAN}${BOLD}7${NC})  👤  Buat User Baru"
+    echo -e "    ${CYAN}${BOLD}7${NC})  👤  Buat User & Pegawai Baru"
+    echo -e "    ${CYAN}${BOLD}8${NC})  ❌  Hapus User & Pegawai"
     echo -e "    ${CYAN}${BOLD}0${NC})  🚪  Keluar"
     echo ""
     divider
@@ -755,7 +869,7 @@ interactive_menu() {
     while true; do
         show_menu
 
-        read -rp "$(echo -e "  ${YELLOW}Masukkan pilihan [0-7]: ${NC}")" choice
+        read -rp "$(echo -e "  ${YELLOW}Masukkan pilihan [0-8]: ${NC}")" choice
         echo ""
 
         case "$choice" in
@@ -766,13 +880,14 @@ interactive_menu() {
             5) check_installed; do_restart;   read -rp "$(echo -e "  ${DIM}Tekan Enter untuk kembali...${NC}")" ;;
             6) check_installed; do_logs;      read -rp "$(echo -e "  ${DIM}Tekan Enter untuk kembali...${NC}")" ;;
             7) check_installed; do_create_user; read -rp "$(echo -e "  ${DIM}Tekan Enter untuk kembali...${NC}")" ;;
+            8) check_installed; do_delete_user; read -rp "$(echo -e "  ${DIM}Tekan Enter untuk kembali...${NC}")" ;;
             0|q|Q|exit)
                 echo -e "  ${GREEN}Sampai jumpa! 👋${NC}"
                 echo ""
                 exit 0
                 ;;
             *)
-                warn "Pilihan tidak valid. Silakan pilih 0-7."
+                warn "Pilihan tidak valid. Silakan pilih 0-8."
                 sleep 1
                 ;;
         esac
@@ -814,6 +929,10 @@ case "${1:-}" in
         check_installed
         do_create_user
         ;;
+    delete-user)
+        check_installed
+        do_delete_user
+        ;;
     "")
         interactive_menu
         ;;
@@ -829,6 +948,7 @@ case "${1:-}" in
         echo "  sudo bash tpqctl.sh restart       # Restart layanan"
         echo "  sudo bash tpqctl.sh logs          # Lihat log"
         echo "  sudo bash tpqctl.sh create-user   # Buat user baru"
+        echo "  sudo bash tpqctl.sh delete-user   # Hapus user"
         exit 1
         ;;
 esac

@@ -87,7 +87,12 @@
                 <div class="overflow-hidden">
                     <h4 class="text-sm font-semibold truncate text-white leading-tight">{{ Auth::user()->name }}</h4>
                     <span class="text-[10px] font-semibold text-blue-400 uppercase tracking-wider">
-                        {{ Auth::user()->role === 'admin_tu' ? 'Admin TU' : 'Kepala Madrasah' }}
+                        {{ [
+                            'admin_tu' => 'Admin TU',
+                            'kepala_madrasah' => 'Kepala Madrasah',
+                            'guru' => 'Guru',
+                            'bendahara' => 'Bendahara'
+                        ][Auth::user()->role] ?? ucwords(str_replace('_', ' ', Auth::user()->role)) }}
                     </span>
                 </div>
             </div>
@@ -180,7 +185,12 @@
                     <div class="overflow-hidden">
                         <h4 class="text-xs font-semibold truncate text-white">{{ Auth::user()->name }}</h4>
                         <span class="text-[9px] font-semibold text-blue-400 uppercase tracking-wider">
-                            {{ Auth::user()->role === 'admin_tu' ? 'Admin TU' : 'Kepala Madrasah' }}
+                            {{ [
+                                'admin_tu' => 'Admin TU',
+                                'kepala_madrasah' => 'Kepala Madrasah',
+                                'guru' => 'Guru',
+                                'bendahara' => 'Bendahara'
+                            ][Auth::user()->role] ?? ucwords(str_replace('_', ' ', Auth::user()->role)) }}
                         </span>
                     </div>
                 </div>
@@ -208,7 +218,12 @@
                 <!-- User Profile Dropdown / Badge -->
                 <div class="flex items-center gap-3 px-4 py-2 bg-slate-50 border border-slate-100 rounded-2xl">
                     <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span class="text-xs font-semibold text-slate-600">Sesi Aktif: <strong class="text-slate-800">{{ Auth::user()->role === 'admin_tu' ? 'Admin TU' : 'Kepala' }}</strong></span>
+                    <span class="text-xs font-semibold text-slate-600">Sesi Aktif: <strong class="text-slate-800">{{ [
+                        'admin_tu' => 'Admin TU',
+                        'kepala_madrasah' => 'Kepala',
+                        'guru' => 'Guru',
+                        'bendahara' => 'Bendahara'
+                    ][Auth::user()->role] ?? ucwords(str_replace('_', ' ', Auth::user()->role)) }}</strong></span>
                 </div>
             </div>
         </header>
