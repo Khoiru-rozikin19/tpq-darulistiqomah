@@ -152,7 +152,7 @@
                 </div>
                 <div>
                     <span class="block text-blue-300 uppercase tracking-wider font-semibold mb-1">Hubungan Pengurus</span>
-                    <span class="block text-white font-medium">@darulistiqomah - Telegram</span>
+                    <span class="block text-white font-medium">@darulistiqomahh - Telegram</span>
                 </div>
             </div>
         </div>

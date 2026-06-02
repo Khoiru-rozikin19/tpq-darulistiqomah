@@ -57,6 +57,10 @@ check_root() {
         echo -e "Gunakan: ${BOLD}sudo bash tpqctl.sh${NC}"
         exit 1
     fi
+    # Tambahkan direktori aplikasi ke safe.directory Git untuk user root
+    if command -v git &>/dev/null; then
+        git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
+    fi
 }
 
 check_installed() {
