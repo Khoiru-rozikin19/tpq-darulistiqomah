@@ -31,7 +31,7 @@
             <img src="{{ asset('images/logo.png') }}" alt="Logo Darul Istiqomah" class="w-9 h-9 object-contain bg-white/10 p-1 rounded-lg">
             <div>
                 <h1 class="text-sm font-bold tracking-tight text-white leading-tight heading-font">Darul Istiqomah</h1>
-                <p class="text-[10px] font-semibold uppercase tracking-wider text-blue-400">Sistem Keuangan</p>
+                <p class="text-[10px] font-semibold uppercase tracking-wider text-blue-400">الموسسةدارالاستقامةقرأنية</p>
             </div>
         </div>
 
