@@ -34,14 +34,38 @@
             <!-- 1. Santri Selection -->
             <div>
                 <label for="santri_id" class="block text-xs font-semibold text-slate-500 mb-2">Pilih Santri (Aktif)</label>
-                <select name="santri_id" id="santri_id" required class="w-full px-3.5 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs text-slate-700 bg-slate-50/50 font-medium">
-                    <option value="">-- Pilih Santri --</option>
-                    @foreach ($santris as $s)
-                        <option value="{{ $s->id }}" {{ $santriId == $s->id ? 'selected' : '' }}>
-                            {{ $s->nama }} (NIS: {{ $s->nis }} - Kelas {{ $s->kelas }})
-                        </option>
-                    @endforeach
-                </select>
+                
+                <!-- Custom Searchable Dropdown -->
+                <div class="relative" id="custom-select-container">
+                    <button type="button" id="custom-select-trigger" class="w-full px-3.5 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs text-slate-700 bg-slate-50/50 font-medium text-left flex justify-between items-center transition-all hover:border-slate-300">
+                        <span id="custom-select-label" class="truncate">-- Pilih Santri --</span>
+                        <svg class="w-4 h-4 text-slate-400 ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    
+                    <!-- Dropdown Content (Hidden by default) -->
+                    <div id="custom-select-dropdown" class="hidden absolute left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 max-h-64 flex flex-col overflow-hidden">
+                        <!-- Search Input -->
+                        <div class="p-2 border-b border-slate-100 bg-slate-50/50">
+                            <input type="text" id="custom-select-search" class="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs text-slate-700 bg-white" placeholder="Ketik nama/NIS/kelas untuk mencari...">
+                        </div>
+                        
+                        <!-- Options List -->
+                        <div class="overflow-y-auto flex-1 max-h-48" id="custom-select-options">
+                            <div class="px-4 py-2.5 text-xs text-slate-400 hover:bg-slate-50 cursor-pointer custom-option" data-value="">-- Pilih Santri --</div>
+                            @foreach ($santris as $s)
+                                <div class="px-4 py-2.5 text-xs text-slate-700 hover:bg-blue-50 hover:text-blue-700 cursor-pointer custom-option {{ $santriId == $s->id ? 'bg-blue-50 text-blue-700 font-semibold' : '' }}" 
+                                     data-value="{{ $s->id }}" 
+                                     data-search-text="{{ strtolower($s->nama . ' ' . $s->nis . ' ' . $s->kelas) }}">
+                                    {{ $s->nama }} (NIS: {{ $s->nis }} - Kelas {{ $s->kelas }})
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+                <!-- Hidden Input for Laravel -->
+                <input type="hidden" name="santri_id" id="santri_id" value="{{ old('santri_id', $santriId) }}" required>
             </div>
 
             <!-- 2. Periode Pembayaran -->
@@ -110,4 +134,84 @@
         </form>
     </div>
 </div>
+@endsection
+
+@section('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('custom-select-container');
+    const trigger = document.getElementById('custom-select-trigger');
+    const label = document.getElementById('custom-select-label');
+    const dropdown = document.getElementById('custom-select-dropdown');
+    const searchInput = document.getElementById('custom-select-search');
+    const optionsContainer = document.getElementById('custom-select-options');
+    const hiddenInput = document.getElementById('santri_id');
+    const options = Array.from(optionsContainer.getElementsByClassName('custom-option'));
+
+    // Set initial label jika ada nilai terpilih
+    const selectedOption = options.find(opt => opt.getAttribute('data-value') === hiddenInput.value);
+    if (selectedOption) {
+        label.textContent = selectedOption.textContent.trim();
+    }
+
+    // Toggle dropdown
+    trigger.addEventListener('click', function(e) {
+        e.stopPropagation();
+        dropdown.classList.toggle('hidden');
+        if (!dropdown.classList.contains('hidden')) {
+            searchInput.focus();
+        }
+    });
+
+    // Tutup dropdown jika klik di luar
+    document.addEventListener('click', function(e) {
+        if (!container.contains(e.target)) {
+            dropdown.classList.add('hidden');
+        }
+    });
+
+    // Filter pencarian
+    searchInput.addEventListener('input', function() {
+        const query = searchInput.value.toLowerCase().trim();
+
+        options.forEach(option => {
+            const searchText = option.getAttribute('data-search-text') || '';
+            const isDefault = option.getAttribute('data-value') === '';
+
+            if (isDefault) {
+                option.style.display = 'block';
+            } else if (searchText.includes(query)) {
+                option.style.display = 'block';
+            } else {
+                option.style.display = 'none';
+            }
+        });
+    });
+
+    // Pilihan opsi
+    optionsContainer.addEventListener('click', function(e) {
+        const option = e.target.closest('.custom-option');
+        if (!option) return;
+
+        const val = option.getAttribute('data-value');
+        const text = option.textContent.trim();
+
+        hiddenInput.value = val;
+        label.textContent = text;
+        dropdown.classList.add('hidden');
+
+        // Reset pencarian dan tampilkan semua opsi kembali
+        searchInput.value = '';
+        options.forEach(opt => opt.style.display = 'block');
+
+        // Update style aktif
+        options.forEach(opt => {
+            opt.classList.remove('bg-blue-50', 'text-blue-700', 'font-semibold');
+        });
+        if (val !== '') {
+            option.classList.add('bg-blue-50', 'text-blue-700', 'font-semibold');
+        }
+    });
+});
+</script>
 @endsection
