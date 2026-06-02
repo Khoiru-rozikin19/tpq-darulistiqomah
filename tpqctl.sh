@@ -669,6 +669,20 @@ do_create_user() {
     fi
 
     echo ""
+    read -rp "$(echo -e "  Tanggal Lahir (YYYY-MM-DD): ")" input_dob
+    if [[ ! "$input_dob" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+        fail "Format tanggal lahir tidak valid (harus YYYY-MM-DD)."
+        return 1
+    fi
+
+    read -rp "$(echo -e "  Tahun Mulai Kerja (YYYY) [2026]: ")" input_year
+    input_year=${input_year:-2026}
+    if [[ ! "$input_year" =~ ^[0-9]{4}$ ]]; then
+        fail "Format tahun tidak valid."
+        return 1
+    fi
+
+    echo ""
     echo -e "  Jenis Kelamin (L/P):"
     echo -e "    ${CYAN}L${NC}) Laki-laki"
     echo -e "    ${CYAN}P${NC}) Perempuan"
@@ -728,6 +742,24 @@ if (\$user) {
     echo "EXISTS";
     exit(1);
 }
+
+// Generate NIP
+\$dobClean = str_replace('-', '', '$input_dob');
+\$startWork = '$input_year' . '01';
+\$genderDigit = ('$gender_choice' === 'L') ? '1' : '2';
+\$nipPrefix = \$dobClean . \$startWork . \$genderDigit;
+\$nip = '';
+for (\$i = 1; \$i <= 999; \$i++) {
+    \$tempNip = \$nipPrefix . sprintf('%03d', \$i);
+    if (!App\Models\Pegawai::where('nip', \$tempNip)->exists()) {
+        \$nip = \$tempNip;
+        break;
+    }
+}
+if (empty(\$nip)) {
+    \$nip = \$nipPrefix . sprintf('%03d', rand(1, 999));
+}
+
 // Create User
 App\Models\User::create([
     'name' => '$escaped_name',
@@ -735,14 +767,16 @@ App\Models\User::create([
     'password' => Illuminate\Support\Facades\Hash::make('$input_password'),
     'role' => '$input_role',
 ]);
+
 // Create Pegawai
 App\Models\Pegawai::create([
+    'nip' => \$nip,
     'nama' => '$escaped_name',
     'jenis_kelamin' => '$gender_choice',
     'jabatan' => '$input_jabatan',
     'status' => 'aktif',
 ]);
-echo "SUCCESS";
+echo "SUCCESS_NIP:" . \$nip;
 EOF
 )
 
@@ -751,8 +785,11 @@ EOF
 
     if [[ "$result" == *"EXISTS"* ]]; then
         fail "Email '${input_email}' sudah terdaftar!"
-    elif [[ "$result" == *"SUCCESS"* ]]; then
+    elif [[ "$result" == *"SUCCESS_NIP:"* ]]; then
+        local generated_nip
+        generated_nip=$(echo "$result" | grep -oP "SUCCESS_NIP:\K[0-9]+")
         success "User & Pegawai '${input_name}' (${input_jabatan}) berhasil dibuat!"
+        info "NIP yang dihasilkan: ${BOLD}${generated_nip}${NC}"
     else
         fail "Gagal membuat user."
         echo -e "  Detail error: ${DIM}${result}${NC}"
