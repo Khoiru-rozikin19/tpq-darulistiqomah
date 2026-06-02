@@ -89,7 +89,7 @@
                 <div>
                     <h1 class="text-xl font-bold tracking-tight text-slate-950 heading-font leading-tight">MADRASAH DARUL ISTIQOMAH</h1>
                     <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Sistem Pencatatan Keuangan & Kas Umum</p>
-                    <p class="text-[10px] text-slate-400 mt-0.5">Alamat: Jl. Kebagusan Raya No. 12, Pasar Minggu, Jakarta Selatan</p>
+                    <p class="text-[10px] text-slate-400 mt-0.5">Alamat : Blok. K, Dusun. Darma Tama, Desa. Tanjung Makmur, Kec. Sinar Peninjauan, Kab. Ogan Komering Ulu</p>
                 </div>
             </div>
             <div class="text-right">
@@ -186,7 +186,7 @@
                 <span id="kepala-name" class="font-bold text-slate-800 block underline">{{ $defaultKepala ? $defaultKepala->nama : 'K.H. Rahmat' }}</span>
             </div>
             <div>
-                <span class="text-slate-400 block mb-1">Jakarta, {{ date('d F Y') }}</span>
+                <span class="text-slate-400 block mb-1">Tanjung Makmur, {{ date('d F Y') }}</span>
                 <span class="text-slate-400 block mb-14">Dibuat oleh, Bendahara TU</span>
                 <span id="bendahara-name" class="font-bold text-slate-800 block underline">{{ $defaultBendahara ? $defaultBendahara->nama : Auth::user()->name }}</span>
             </div>
