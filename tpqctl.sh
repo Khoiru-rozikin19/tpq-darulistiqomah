@@ -631,6 +631,101 @@ do_logs() {
 }
 
 # ═════════════════════════════════════════════
+#  7. BUAT USER BARU
+# ═════════════════════════════════════════════
+do_create_user() {
+    show_header
+    echo -e "  ${BOLD}👤 BUAT USER BARU${NC}"
+    divider
+    echo ""
+
+    read -rp "$(echo -e "  Nama Lengkap     : ")" input_name
+    if [[ -z "$input_name" ]]; then
+        fail "Nama tidak boleh kosong."
+        return 1
+    fi
+
+    read -rp "$(echo -e "  Email            : ")" input_email
+    if [[ -z "$input_email" ]]; then
+        fail "Email tidak boleh kosong."
+        return 1
+    fi
+
+    # Validasi format email sederhana
+    if [[ ! "$input_email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+        fail "Format email tidak valid."
+        return 1
+    fi
+
+    read -rsp "$(echo -e "  Password         : ")" input_password
+    echo ""
+    if [[ -z "$input_password" ]]; then
+        fail "Password tidak boleh kosong."
+        return 1
+    fi
+
+    if [[ ${#input_password} -lt 8 ]]; then
+        warn "Password terlalu pendek (minimal 8 karakter)."
+    fi
+
+    echo ""
+    echo -e "  Pilih Role/Jabatan:"
+    echo -e "    ${CYAN}1${NC}) Admin TU"
+    echo -e "    ${CYAN}2${NC}) Kepala Madrasah"
+    read -rp "$(echo -e "  Pilihan [1/2]: ")" role_choice
+
+    local input_role
+    case "$role_choice" in
+        1) input_role="admin_tu" ;;
+        2) input_role="kepala_madrasah" ;;
+        *)
+            fail "Pilihan role tidak valid."
+            return 1
+            ;;
+    esac
+
+    echo ""
+    info "Sedang membuat user di database..."
+
+    cd "$APP_DIR"
+
+    # Escape karakter petik tunggal agar tidak merusak script PHP
+    local escaped_name
+    escaped_name=$(echo "$input_name" | sed "s/'/\\\\'/g")
+
+    local php_code
+    php_code=$(cat <<EOF
+\$email = '$input_email';
+\$user = App\Models\User::where('email', \$email)->first();
+if (\$user) {
+    echo "EXISTS";
+    exit(1);
+}
+App\Models\User::create([
+    'name' => '$escaped_name',
+    'email' => \$email,
+    'password' => Illuminate\Support\Facades\Hash::make('$input_password'),
+    'role' => '$input_role',
+]);
+echo "SUCCESS";
+EOF
+)
+
+    local result
+    result=$(php artisan tinker --execute="$php_code" 2>&1)
+
+    if [[ "$result" == *"EXISTS"* ]]; then
+        fail "Email '${input_email}' sudah terdaftar!"
+    elif [[ "$result" == *"SUCCESS"* ]]; then
+        success "User '${input_name}' dengan role '${input_role}' berhasil dibuat!"
+    else
+        fail "Gagal membuat user."
+        echo -e "  Detail error: ${DIM}${result}${NC}"
+    fi
+    echo ""
+}
+
+# ═════════════════════════════════════════════
 #  MENU UTAMA
 # ═════════════════════════════════════════════
 show_menu() {
@@ -649,6 +744,7 @@ show_menu() {
     echo -e "    ${CYAN}${BOLD}4${NC})  🗑️   Uninstall Website"
     echo -e "    ${CYAN}${BOLD}5${NC})  ♻️   Restart Semua Layanan"
     echo -e "    ${CYAN}${BOLD}6${NC})  📋  Lihat Log Laravel"
+    echo -e "    ${CYAN}${BOLD}7${NC})  👤  Buat User Baru"
     echo -e "    ${CYAN}${BOLD}0${NC})  🚪  Keluar"
     echo ""
     divider
@@ -659,7 +755,7 @@ interactive_menu() {
     while true; do
         show_menu
 
-        read -rp "$(echo -e "  ${YELLOW}Masukkan pilihan [0-6]: ${NC}")" choice
+        read -rp "$(echo -e "  ${YELLOW}Masukkan pilihan [0-7]: ${NC}")" choice
         echo ""
 
         case "$choice" in
@@ -669,13 +765,14 @@ interactive_menu() {
             4) check_installed; do_uninstall; read -rp "$(echo -e "  ${DIM}Tekan Enter untuk kembali...${NC}")" ;;
             5) check_installed; do_restart;   read -rp "$(echo -e "  ${DIM}Tekan Enter untuk kembali...${NC}")" ;;
             6) check_installed; do_logs;      read -rp "$(echo -e "  ${DIM}Tekan Enter untuk kembali...${NC}")" ;;
+            7) check_installed; do_create_user; read -rp "$(echo -e "  ${DIM}Tekan Enter untuk kembali...${NC}")" ;;
             0|q|Q|exit)
                 echo -e "  ${GREEN}Sampai jumpa! 👋${NC}"
                 echo ""
                 exit 0
                 ;;
             *)
-                warn "Pilihan tidak valid. Silakan pilih 0-6."
+                warn "Pilihan tidak valid. Silakan pilih 0-7."
                 sleep 1
                 ;;
         esac
@@ -713,6 +810,10 @@ case "${1:-}" in
         check_installed
         do_logs
         ;;
+    create-user)
+        check_installed
+        do_create_user
+        ;;
     "")
         interactive_menu
         ;;
@@ -727,6 +828,7 @@ case "${1:-}" in
         echo "  sudo bash tpqctl.sh uninstall     # Uninstall"
         echo "  sudo bash tpqctl.sh restart       # Restart layanan"
         echo "  sudo bash tpqctl.sh logs          # Lihat log"
+        echo "  sudo bash tpqctl.sh create-user   # Buat user baru"
         exit 1
         ;;
 esac
