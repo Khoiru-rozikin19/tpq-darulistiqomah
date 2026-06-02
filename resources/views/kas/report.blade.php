@@ -94,7 +94,7 @@
             </div>
             <div class="text-right">
                 <span class="text-xs font-bold text-slate-900 block">LAPORAN BUKU KAS</span>
-                <span class="text-[10px] text-slate-400 block mt-1">Dicetak: {{ date('d F Y H:i') }}</span>
+                <span class="text-[10px] text-slate-400 block mt-1">Dicetak: {{ \Carbon\Carbon::now()->locale('id')->translatedFormat('d F Y H:i') }}</span>
             </div>
         </div>
 
@@ -186,7 +186,7 @@
                 <span id="kepala-name" class="font-bold text-slate-800 block underline">{{ $defaultKepala ? $defaultKepala->nama : 'K.H. Rahmat' }}</span>
             </div>
             <div>
-                <span class="text-slate-400 block mb-1">Tanjung Makmur, {{ date('d F Y') }}</span>
+                <span class="text-slate-400 block mb-1">Tanjung Makmur, {{ \Carbon\Carbon::now()->locale('id')->translatedFormat('d F Y') }}</span>
                 <span class="text-slate-400 block mb-14">Dibuat oleh, Bendahara TU</span>
                 <span id="bendahara-name" class="font-bold text-slate-800 block underline">{{ $defaultBendahara ? $defaultBendahara->nama : Auth::user()->name }}</span>
             </div>
