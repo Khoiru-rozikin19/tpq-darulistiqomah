@@ -30,7 +30,7 @@
                 <img src="{{ asset('images/logo.png') }}" alt="Logo Darul Istiqomah" class="w-10 h-10 object-contain rounded-xl">
                 <div>
                     <h2 class="text-lg font-bold text-slate-800 leading-tight heading-font">Darul Istiqomah</h2>
-                    <p class="text-xs font-semibold tracking-wider text-blue-600 uppercase">Sistem Keuangan</p>
+                    <p class="text-xs font-semibold tracking-wider text-blue-600 uppercase">الموسسةدارالاستقامةقرأنية</p>
                 </div>
             </div>
 
@@ -148,7 +148,7 @@
             <div class="z-10 mt-auto pt-8 border-t border-blue-600/40 flex flex-col sm:flex-row justify-between gap-4 text-xs text-blue-200">
                 <div>
                     <span class="block text-blue-300 uppercase tracking-wider font-semibold mb-1">Kontak Admin TU</span>
-                    <span class="block text-white font-medium">082269245660 - WhatsApp</span>
+                    <span class="block text-white font-medium">082372838757 - WhatsApp</span>
                 </div>
                 <div>
                     <span class="block text-blue-300 uppercase tracking-wider font-semibold mb-1">Hubungan Pengurus</span>
