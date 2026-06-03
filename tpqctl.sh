@@ -876,6 +876,245 @@ EOF
 }
 
 # ═════════════════════════════════════════════
+#  9. BACKUP WEBSITE
+# ═════════════════════════════════════════════
+do_backup() {
+    show_header
+    echo -e "  ${BOLD}📦 BACKUP WEBSITE${NC}"
+    divider
+    echo ""
+
+    local backup_dir="/var/www/tpq_backups"
+    mkdir -p "$backup_dir"
+    chown -R ${APP_USER}:${APP_USER} "$backup_dir" 2>/dev/null || true
+
+    local backup_filename="tpq_backup_$(date +%Y%m%d_%H%M%S).tar.gz"
+    local backup_path="${backup_dir}/${backup_filename}"
+
+    info "Mengaktifkan mode maintenance..."
+    cd "$APP_DIR"
+    php artisan down --retry=60 2>/dev/null || true
+
+    info "Membuat arsip backup..."
+    # Kita backup: .env, database/database.sqlite, dan folder storage/app
+    if [[ ! -f "database/database.sqlite" ]]; then
+        fail "Database database.sqlite tidak ditemukan. Backup gagal."
+        php artisan up 2>/dev/null || true
+        return 1
+    fi
+
+    # Buat arsip
+    tar -czf "$backup_path" -C "$APP_DIR" .env database/database.sqlite storage/app 2>&1 | while read -r line; do echo -e "  ${DIM}${line}${NC}"; done
+
+    # Cek apakah tar berhasil
+    if [[ $? -eq 0 && -f "$backup_path" ]]; then
+        local file_size
+        file_size=$(du -h "$backup_path" 2>/dev/null | awk '{print $1}')
+        success "Backup berhasil dibuat: ${BOLD}${backup_filename}${NC} (${file_size:-N/A})"
+        echo -e "  Lokasi: ${DIM}${backup_path}${NC}"
+    else
+        fail "Gagal membuat arsip backup."
+        php artisan up 2>/dev/null || true
+        return 1
+    fi
+
+    info "Menonaktifkan mode maintenance..."
+    php artisan up 2>/dev/null || true
+    echo ""
+
+    # Opsi transfer ke VPS baru
+    read -rp "$(echo -e "  ${YELLOW}Apakah Anda ingin mentransfer backup ke VPS baru? (y/n) [n]: ${NC}")" confirm_transfer
+    confirm_transfer=${confirm_transfer:-n}
+
+    if [[ "$confirm_transfer" == "y" || "$confirm_transfer" == "Y" ]]; then
+        echo ""
+        read -rp "$(echo -e "  IP Address VPS Baru : ")" vps_ip
+        if [[ -z "$vps_ip" ]]; then
+            fail "IP Address tidak boleh kosong. Transfer dibatalkan."
+            return 1
+        fi
+
+        read -rp "$(echo -e "  Port SSH [22]       : ")" vps_port
+        vps_port=${vps_port:-22}
+
+        read -rp "$(echo -e "  User SSH [root]     : ")" vps_user
+        vps_user=${vps_user:-root}
+
+        read -rp "$(echo -e "  Target Folder [/root]: ")" vps_folder
+        vps_folder=${vps_folder:-/root}
+
+        info "Mengirim backup ke ${vps_user}@${vps_ip}:${vps_folder} via SCP..."
+        scp -P "$vps_port" "$backup_path" "${vps_user}@${vps_ip}:${vps_folder}/"
+        if [[ $? -eq 0 ]]; then
+            success "Transfer selesai! File backup terkirim."
+        else
+            fail "Gagal mentransfer file backup ke VPS baru."
+        fi
+    fi
+    echo ""
+}
+
+# ═════════════════════════════════════════════
+#  10. RESTORE WEBSITE
+# ═════════════════════════════════════════════
+do_restore() {
+    show_header
+    echo -e "  ${BOLD}⏪ RESTORE WEBSITE${NC}"
+    divider
+    echo ""
+
+    local backup_dir="/var/www/tpq_backups"
+    mkdir -p "$backup_dir"
+
+    echo -e "  Pilih sumber backup:"
+    echo -e "    ${CYAN}1${NC}) Gunakan file backup lokal yang ada"
+    echo -e "    ${CYAN}2${NC}) Tarik backup dari VPS lama (via SCP)"
+    read -rp "$(echo -e "  Pilihan [1-2]: ")" restore_source
+
+    local selected_backup=""
+
+    if [[ "$restore_source" == "1" ]]; then
+        # List files in backup_dir
+        local files=()
+        while IFS= read -r line; do
+            files+=("$line")
+        done < <(find "$backup_dir" -maxdepth 1 -name "tpq_backup_*.tar.gz" -printf "%f\n" 2>/dev/null | sort -r)
+
+        if [[ ${#files[@]} -eq 0 ]]; then
+            warn "Tidak ditemukan file backup (*.tar.gz) di ${backup_dir}."
+            read -rp "$(echo -e "  Masukkan path absolut file backup manual: ")" manual_path
+            if [[ -f "$manual_path" ]]; then
+                selected_backup="$manual_path"
+            else
+                fail "File tidak ditemukan di ${manual_path}."
+                return 1
+            fi
+        else
+            echo ""
+            echo -e "  ${BOLD}Daftar backup yang tersedia:${NC}"
+            local idx=1
+            for file in "${files[@]}"; do
+                echo -e "    ${CYAN}${idx}${NC}) ${file}"
+                idx=$((idx + 1))
+            done
+            read -rp "$(echo -e "  Pilih nomor backup [1-$((idx-1))]: ")" file_choice
+            if [[ "$file_choice" -ge 1 && "$file_choice" -lt "$idx" ]]; then
+                selected_backup="${backup_dir}/${files[$((file_choice-1))]}"
+            else
+                fail "Pilihan tidak valid."
+                return 1
+            fi
+        fi
+    elif [[ "$restore_source" == "2" ]]; then
+        echo ""
+        read -rp "$(echo -e "  IP Address VPS Lama : ")" old_ip
+        if [[ -z "$old_ip" ]]; then
+            fail "IP Address tidak boleh kosong."
+            return 1
+        fi
+
+        read -rp "$(echo -e "  Port SSH [22]       : ")" old_port
+        old_port=${old_port:-22}
+
+        read -rp "$(echo -e "  User SSH [root]     : ")" old_user
+        old_user=${old_user:-root}
+
+        read -rp "$(echo -e "  Path File Backup di VPS Lama (misal: /var/www/tpq_backups/tpq_backup_xxx.tar.gz): ")" old_path
+        if [[ -z "$old_path" ]]; then
+            fail "Path file backup tidak boleh kosong."
+            return 1
+        fi
+
+        local temp_filename
+        temp_filename=$(basename "$old_path")
+        local local_target="${backup_dir}/${temp_filename}"
+
+        info "Menarik backup dari VPS lama via SCP..."
+        scp -P "$old_port" "${old_user}@${old_ip}:${old_path}" "$local_target"
+        if [[ $? -eq 0 && -f "$local_target" ]]; then
+            success "Backup berhasil ditarik ke lokal: ${local_target}"
+            selected_backup="$local_target"
+        else
+            fail "Gagal menarik file backup dari VPS lama."
+            return 1
+        fi
+    else
+        fail "Pilihan tidak valid."
+        return 1
+    fi
+
+    # Mulai proses restore
+    echo ""
+    echo -e "  ${RED}${BOLD}PERINGATAN: Operasi ini akan menimpa database, file .env, dan asset storage Anda saat ini!${NC}"
+    read -rp "$(echo -e "  ${RED}${BOLD}Apakah Anda yakin ingin melanjutkan? Ketik 'RESTORE' untuk konfirmasi: ${NC}")" confirm_restore
+    if [[ "$confirm_restore" != "RESTORE" ]]; then
+        info "Restore dibatalkan."
+        return 0
+    fi
+
+    echo ""
+    info "Memulai pemulihan dari ${selected_backup}..."
+
+    # Buat backup penyelamat .env & database saat ini (safety backup)
+    if [[ -f "${APP_DIR}/database/database.sqlite" ]]; then
+        cp "${APP_DIR}/database/database.sqlite" "${APP_DIR}/database/database.sqlite.bak" 2>/dev/null || true
+    fi
+    if [[ -f "${APP_DIR}/.env" ]]; then
+        cp "${APP_DIR}/.env" "${APP_DIR}/.env.bak" 2>/dev/null || true
+    fi
+
+    info "Mengaktifkan mode maintenance..."
+    cd "$APP_DIR"
+    php artisan down --retry=60 2>/dev/null || true
+
+    info "Mengekstrak file backup..."
+    tar -xzf "$selected_backup" -C "$APP_DIR"
+    if [[ $? -ne 0 ]]; then
+        fail "Gagal mengekstrak backup! Mengembalikan cadangan sementara..."
+        if [[ -f "${APP_DIR}/database/database.sqlite.bak" ]]; then
+            mv "${APP_DIR}/database/database.sqlite.bak" "${APP_DIR}/database/database.sqlite"
+        fi
+        if [[ -f "${APP_DIR}/.env.bak" ]]; then
+            mv "${APP_DIR}/.env.bak" "${APP_DIR}/.env"
+        fi
+        php artisan up 2>/dev/null || true
+        return 1
+    fi
+
+    # Hapus file safety backup jika sukses
+    rm -f "${APP_DIR}/database/database.sqlite.bak"
+    rm -f "${APP_DIR}/.env.bak"
+
+    info "Mengatur perizinan file..."
+    chown -R ${APP_USER}:${APP_USER} "$APP_DIR"
+    chmod -R 775 "${APP_DIR}/storage" "${APP_DIR}/bootstrap/cache"
+    chmod 664 "${APP_DIR}/database/database.sqlite" 2>/dev/null || true
+
+    # Jalankan migrasi opsional & rebuild cache
+    info "Menjalankan migrasi database..."
+    php artisan migrate --force --no-interaction 2>&1 | tail -5
+
+    info "Membangun ulang cache Laravel..."
+    php artisan optimize:clear --no-interaction 2>/dev/null
+    php artisan config:cache --no-interaction
+    php artisan route:cache --no-interaction
+    php artisan view:cache --no-interaction
+    php artisan event:cache --no-interaction 2>/dev/null || true
+
+    # Restart layanan
+    info "Merestart PHP-FPM & Nginx..."
+    systemctl restart php${PHP_VERSION}-fpm 2>/dev/null || true
+    systemctl restart nginx 2>/dev/null || true
+    supervisorctl restart tpq-worker:* 2>/dev/null || true
+
+    # Nonaktifkan maintenance mode
+    php artisan up 2>/dev/null || true
+
+    success "Website berhasil direstore sepenuhnya!"
+    echo ""
+}
+
+# ═════════════════════════════════════════════
 #  MENU UTAMA
 # ═════════════════════════════════════════════
 show_menu() {
@@ -896,6 +1135,8 @@ show_menu() {
     echo -e "    ${CYAN}${BOLD}6${NC})  📋  Lihat Log Laravel"
     echo -e "    ${CYAN}${BOLD}7${NC})  👤  Buat User & Pegawai Baru"
     echo -e "    ${CYAN}${BOLD}8${NC})  ❌  Hapus User & Pegawai"
+    echo -e "    ${CYAN}${BOLD}9${NC})  📦  Backup Website (ke lokal/VPS baru)"
+    echo -e "    ${CYAN}${BOLD}10${NC}) ⏪  Restore Website (dari lokal/VPS lama)"
     echo -e "    ${CYAN}${BOLD}0${NC})  🚪  Keluar"
     echo ""
     divider
@@ -906,7 +1147,7 @@ interactive_menu() {
     while true; do
         show_menu
 
-        read -rp "$(echo -e "  ${YELLOW}Masukkan pilihan [0-8]: ${NC}")" choice
+        read -rp "$(echo -e "  ${YELLOW}Masukkan pilihan [0-10]: ${NC}")" choice
         echo ""
 
         case "$choice" in
@@ -918,13 +1159,15 @@ interactive_menu() {
             6) check_installed; do_logs;      read -rp "$(echo -e "  ${DIM}Tekan Enter untuk kembali...${NC}")" ;;
             7) check_installed; do_create_user; read -rp "$(echo -e "  ${DIM}Tekan Enter untuk kembali...${NC}")" ;;
             8) check_installed; do_delete_user; read -rp "$(echo -e "  ${DIM}Tekan Enter untuk kembali...${NC}")" ;;
+            9) check_installed; do_backup;      read -rp "$(echo -e "  ${DIM}Tekan Enter untuk kembali...${NC}")" ;;
+            10) check_installed; do_restore;    read -rp "$(echo -e "  ${DIM}Tekan Enter untuk kembali...${NC}")" ;;
             0|q|Q|exit)
                 echo -e "  ${GREEN}Sampai jumpa! 👋${NC}"
                 echo ""
                 exit 0
                 ;;
             *)
-                warn "Pilihan tidak valid. Silakan pilih 0-8."
+                warn "Pilihan tidak valid. Silakan pilih 0-10."
                 sleep 1
                 ;;
         esac
@@ -970,6 +1213,14 @@ case "${1:-}" in
         check_installed
         do_delete_user
         ;;
+    backup)
+        check_installed
+        do_backup
+        ;;
+    restore)
+        check_installed
+        do_restore
+        ;;
     "")
         interactive_menu
         ;;
@@ -986,6 +1237,8 @@ case "${1:-}" in
         echo "  sudo bash tpqctl.sh logs          # Lihat log"
         echo "  sudo bash tpqctl.sh create-user   # Buat user baru"
         echo "  sudo bash tpqctl.sh delete-user   # Hapus user"
+        echo "  sudo bash tpqctl.sh backup        # Backup website"
+        echo "  sudo bash tpqctl.sh restore       # Restore website"
         exit 1
         ;;
 esac
