@@ -88,7 +88,10 @@ load_config() {
     fi
     # Fallback: coba baca git remote dari repo
     if [[ -z "$GIT_REMOTE" && -d "${APP_DIR}/.git" ]]; then
-        GIT_REMOTE=$(cd "$APP_DIR" && git remote get-url origin 2>/dev/null || echo "")
+        local r_name
+        r_name=$(cd "$APP_DIR" && git remote 2>/dev/null | head -1)
+        r_name=${r_name:-origin}
+        GIT_REMOTE=$(cd "$APP_DIR" && git remote get-url "$r_name" 2>/dev/null || echo "")
     fi
 }
 
@@ -280,15 +283,28 @@ do_update() {
         echo ""
     fi
 
-    local remote_url branch
-    remote_url=$(git remote get-url origin 2>/dev/null || echo "")
+    local branch
     branch=$(git branch --show-current 2>/dev/null || echo "main")
 
+    local remote_name
+    remote_name=$(git config --get branch."$branch".remote 2>/dev/null || echo "origin")
+
+    local remote_url
+    remote_url=$(git remote get-url "$remote_name" 2>/dev/null || echo "")
+
     if [[ -z "$remote_url" ]]; then
-        fail "Remote 'origin' belum dikonfigurasi."
+        # Coba ambil remote pertama yang ada
+        remote_name=$(git remote 2>/dev/null | head -1)
+        remote_name=${remote_name:-origin}
+        remote_url=$(git remote get-url "$remote_name" 2>/dev/null || echo "")
+    fi
+
+    if [[ -z "$remote_url" ]]; then
+        fail "Remote Git tidak ditemukan."
         read -rp "$(echo -e "  ${YELLOW}Masukkan URL repository GitHub: ${NC}")" input_remote
         if [[ -n "$input_remote" ]]; then
             git remote add origin "$input_remote" 2>/dev/null || git remote set-url origin "$input_remote"
+            remote_name="origin"
             remote_url="$input_remote"
             GIT_REMOTE="$input_remote"
             save_config
@@ -298,18 +314,18 @@ do_update() {
         fi
     fi
 
-    echo -e "  Remote   : ${BOLD}${remote_url}${NC}"
+    echo -e "  Remote   : ${BOLD}${remote_url}${NC} (via ${remote_name})"
     echo -e "  Branch   : ${BOLD}${branch}${NC}"
     echo ""
 
     # Fetch
     info "Mengambil perubahan terbaru dari remote..."
-    git fetch origin "$branch" 2>&1 | while read -r line; do echo -e "  ${DIM}${line}${NC}"; done
+    git fetch "$remote_name" "$branch" 2>&1 | while read -r line; do echo -e "  ${DIM}${line}${NC}"; done
 
     # Cek apakah ada perubahan
     local local_hash remote_hash
     local_hash=$(git rev-parse HEAD 2>/dev/null)
-    remote_hash=$(git rev-parse "origin/$branch" 2>/dev/null)
+    remote_hash=$(git rev-parse FETCH_HEAD 2>/dev/null)
 
     if [[ "$local_hash" == "$remote_hash" ]]; then
         echo ""
@@ -358,7 +374,7 @@ do_update() {
 
     # Pull perubahan
     info "Menarik perubahan dari remote..."
-    git reset --hard "origin/$branch" 2>&1 | while read -r line; do echo -e "  ${DIM}${line}${NC}"; done
+    git reset --hard FETCH_HEAD 2>&1 | while read -r line; do echo -e "  ${DIM}${line}${NC}"; done
 
     # Rebuild dependencies
     info "Menginstal dependensi Composer..."
