@@ -70,7 +70,7 @@ Pembayaran dapat dilakukan melalui transfer bank atau langsung tunai ke Kantor T
 
 Bila sudah melakukan pembayaran, mohon abaikan pesan ini atau kirimkan foto bukti transfer kepada kami. Terima kasih.
 
-Wassalamu'alaikum Wr. Wb.
+Wassalamu'alaikum Wr. Wb..
 - Admin TU Darul Istiqomah</textarea>
                 </div>
 
