@@ -130,18 +130,6 @@
                     Memudahkan transparansi dan akurasi keuangan madrasah.
                 </p>
 
-                <!-- Yellow Alert Box (Referencing Screenshot style) -->
-                <div class="bg-blue-600/30 backdrop-blur-md border border-blue-500/40 rounded-2xl p-5 flex items-start gap-4 max-w-xl">
-                    <div class="w-10 h-10 rounded-xl bg-yellow-400 text-blue-900 flex items-center justify-center flex-shrink-0 font-bold">
-                        i
-                    </div>
-                    <div>
-                        <h4 class="font-semibold text-yellow-300 text-sm mb-1">Informasi Akun Default:</h4>
-                        <p class="text-xs text-blue-100 leading-normal">
-                            Gunakan email <strong class="text-white">admin@darulistiqomah.com</strong> atau <strong class="text-white">kepala@darulistiqomah.com</strong> dengan password <strong class="text-white">password</strong> untuk masuk.
-                        </p>
-                    </div>
-                </div>
             </div>
 
             <!-- Contact Admin Info (Referencing Screenshot) -->
