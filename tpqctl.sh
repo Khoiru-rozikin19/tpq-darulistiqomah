@@ -892,11 +892,11 @@ EOF
 }
 
 # ═════════════════════════════════════════════
-#  9. BACKUP WEBSITE
+#  9. BACKUP WEBSITE LOKAL
 # ═════════════════════════════════════════════
 do_backup() {
     show_header
-    echo -e "  ${BOLD}📦 BACKUP WEBSITE${NC}"
+    echo -e "  ${BOLD}📦 BACKUP WEBSITE LOKAL${NC}"
     divider
     echo ""
 
@@ -926,10 +926,12 @@ do_backup() {
     if [[ $? -eq 0 && -f "$backup_path" ]]; then
         local file_size
         file_size=$(du -h "$backup_path" 2>/dev/null | awk '{print $1}')
-        success "Backup berhasil dibuat: ${BOLD}${backup_filename}${NC} (${file_size:-N/A})"
-        echo -e "  Lokasi: ${DIM}${backup_path}${NC}"
+        success "Backup berhasil dibuat secara lokal!"
+        echo -e "  Nama File: ${BOLD}${backup_filename}${NC}"
+        echo -e "  Ukuran   : ${BOLD}${file_size:-N/A}${NC}"
+        echo -e "  Lokasi   : ${DIM}${backup_path}${NC}"
     else
-        fail "Gagal membuat arsip backup."
+        fail "Gagal membuat arsip backup lokal."
         php artisan up 2>/dev/null || true
         return 1
     fi
@@ -937,126 +939,51 @@ do_backup() {
     info "Menonaktifkan mode maintenance..."
     php artisan up 2>/dev/null || true
     echo ""
-
-    # Opsi transfer ke VPS baru
-    read -rp "$(echo -e "  ${YELLOW}Apakah Anda ingin mentransfer backup ke VPS baru? (y/n) [n]: ${NC}")" confirm_transfer
-    confirm_transfer=${confirm_transfer:-n}
-
-    if [[ "$confirm_transfer" == "y" || "$confirm_transfer" == "Y" ]]; then
-        echo ""
-        read -rp "$(echo -e "  IP Address VPS Baru : ")" vps_ip
-        if [[ -z "$vps_ip" ]]; then
-            fail "IP Address tidak boleh kosong. Transfer dibatalkan."
-            return 1
-        fi
-
-        read -rp "$(echo -e "  Port SSH [22]       : ")" vps_port
-        vps_port=${vps_port:-22}
-
-        read -rp "$(echo -e "  User SSH [root]     : ")" vps_user
-        vps_user=${vps_user:-root}
-
-        read -rp "$(echo -e "  Target Folder [/root]: ")" vps_folder
-        vps_folder=${vps_folder:-/root}
-
-        info "Mengirim backup ke ${vps_user}@${vps_ip}:${vps_folder} via SCP..."
-        scp -P "$vps_port" "$backup_path" "${vps_user}@${vps_ip}:${vps_folder}/"
-        if [[ $? -eq 0 ]]; then
-            success "Transfer selesai! File backup terkirim."
-        else
-            fail "Gagal mentransfer file backup ke VPS baru."
-        fi
-    fi
-    echo ""
 }
 
 # ═════════════════════════════════════════════
-#  10. RESTORE WEBSITE
+#  10. RESTORE WEBSITE LOKAL
 # ═════════════════════════════════════════════
 do_restore() {
     show_header
-    echo -e "  ${BOLD}⏪ RESTORE WEBSITE${NC}"
+    echo -e "  ${BOLD}⏪ RESTORE WEBSITE LOKAL${NC}"
     divider
     echo ""
 
     local backup_dir="/var/www/tpq_backups"
     mkdir -p "$backup_dir"
 
-    echo -e "  Pilih sumber backup:"
-    echo -e "    ${CYAN}1${NC}) Gunakan file backup lokal yang ada"
-    echo -e "    ${CYAN}2${NC}) Tarik backup dari VPS lama (via SCP)"
-    read -rp "$(echo -e "  Pilihan [1-2]: ")" restore_source
-
     local selected_backup=""
 
-    if [[ "$restore_source" == "1" ]]; then
-        # List files in backup_dir
-        local files=()
-        while IFS= read -r line; do
-            files+=("$line")
-        done < <(find "$backup_dir" -maxdepth 1 -name "tpq_backup_*.tar.gz" -printf "%f\n" 2>/dev/null | sort -r)
+    # List files in backup_dir
+    local files=()
+    while IFS= read -r line; do
+        files+=("$line")
+    done < <(find "$backup_dir" -maxdepth 1 -name "tpq_backup_*.tar.gz" -printf "%f\n" 2>/dev/null | sort -r)
 
-        if [[ ${#files[@]} -eq 0 ]]; then
-            warn "Tidak ditemukan file backup (*.tar.gz) di ${backup_dir}."
-            read -rp "$(echo -e "  Masukkan path absolut file backup manual: ")" manual_path
-            if [[ -f "$manual_path" ]]; then
-                selected_backup="$manual_path"
-            else
-                fail "File tidak ditemukan di ${manual_path}."
-                return 1
-            fi
+    if [[ ${#files[@]} -eq 0 ]]; then
+        warn "Tidak ditemukan file backup (*.tar.gz) di ${backup_dir}."
+        read -rp "$(echo -e "  Masukkan path absolut file backup manual: ")" manual_path
+        if [[ -f "$manual_path" ]]; then
+            selected_backup="$manual_path"
         else
-            echo ""
-            echo -e "  ${BOLD}Daftar backup yang tersedia:${NC}"
-            local idx=1
-            for file in "${files[@]}"; do
-                echo -e "    ${CYAN}${idx}${NC}) ${file}"
-                idx=$((idx + 1))
-            done
-            read -rp "$(echo -e "  Pilih nomor backup [1-$((idx-1))]: ")" file_choice
-            if [[ "$file_choice" -ge 1 && "$file_choice" -lt "$idx" ]]; then
-                selected_backup="${backup_dir}/${files[$((file_choice-1))]}"
-            else
-                fail "Pilihan tidak valid."
-                return 1
-            fi
-        fi
-    elif [[ "$restore_source" == "2" ]]; then
-        echo ""
-        read -rp "$(echo -e "  IP Address VPS Lama : ")" old_ip
-        if [[ -z "$old_ip" ]]; then
-            fail "IP Address tidak boleh kosong."
-            return 1
-        fi
-
-        read -rp "$(echo -e "  Port SSH [22]       : ")" old_port
-        old_port=${old_port:-22}
-
-        read -rp "$(echo -e "  User SSH [root]     : ")" old_user
-        old_user=${old_user:-root}
-
-        read -rp "$(echo -e "  Path File Backup di VPS Lama (misal: /var/www/tpq_backups/tpq_backup_xxx.tar.gz): ")" old_path
-        if [[ -z "$old_path" ]]; then
-            fail "Path file backup tidak boleh kosong."
-            return 1
-        fi
-
-        local temp_filename
-        temp_filename=$(basename "$old_path")
-        local local_target="${backup_dir}/${temp_filename}"
-
-        info "Menarik backup dari VPS lama via SCP..."
-        scp -P "$old_port" "${old_user}@${old_ip}:${old_path}" "$local_target"
-        if [[ $? -eq 0 && -f "$local_target" ]]; then
-            success "Backup berhasil ditarik ke lokal: ${local_target}"
-            selected_backup="$local_target"
-        else
-            fail "Gagal menarik file backup dari VPS lama."
+            fail "File tidak ditemukan di ${manual_path}."
             return 1
         fi
     else
-        fail "Pilihan tidak valid."
-        return 1
+        echo -e "  Daftar backup lokal yang tersedia:"
+        local idx=1
+        for file in "${files[@]}"; do
+            echo -e "    ${CYAN}${idx}${NC}) ${file}"
+            idx=$((idx + 1))
+        done
+        read -rp "$(echo -e "  Pilih nomor backup [1-$((idx-1))]: ")" file_choice
+        if [[ "$file_choice" -ge 1 && "$file_choice" -lt "$idx" ]]; then
+            selected_backup="${backup_dir}/${files[$((file_choice-1))]}"
+        else
+            fail "Pilihan tidak valid."
+            return 1
+        fi
     fi
 
     # Mulai proses restore
@@ -1151,8 +1078,8 @@ show_menu() {
     echo -e "    ${CYAN}${BOLD}6${NC})  📋  Lihat Log Laravel"
     echo -e "    ${CYAN}${BOLD}7${NC})  👤  Buat User & Pegawai Baru"
     echo -e "    ${CYAN}${BOLD}8${NC})  ❌  Hapus User & Pegawai"
-    echo -e "    ${CYAN}${BOLD}9${NC})  📦  Backup Website (ke lokal/VPS baru)"
-    echo -e "    ${CYAN}${BOLD}10${NC}) ⏪  Restore Website (dari lokal/VPS lama)"
+    echo -e "    ${CYAN}${BOLD}9${NC})  📦  Backup Website (Lokal)"
+    echo -e "    ${CYAN}${BOLD}10${NC}) ⏪  Restore Website (Lokal)"
     echo -e "    ${CYAN}${BOLD}0${NC})  🚪  Keluar"
     echo ""
     divider
