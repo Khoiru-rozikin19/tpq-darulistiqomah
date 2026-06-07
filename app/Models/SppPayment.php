@@ -29,6 +29,22 @@ class SppPayment extends Model
         ];
     }
 
+    protected static function booted()
+    {
+        static::deleting(function ($payment) {
+            $santri = $payment->santri;
+            if ($santri) {
+                Kas::where('kategori', 'SPP')
+                    ->where('nominal', $payment->nominal)
+                    ->where(function ($query) use ($santri) {
+                        $query->where('keterangan', 'like', "%(NIS: {$santri->nis})%")
+                              ->orWhere('keterangan', 'like', "%a.n {$santri->nama}%");
+                    })
+                    ->delete();
+            }
+        });
+    }
+
     public function santri(): BelongsTo
     {
         return $this->belongsTo(Santri::class);

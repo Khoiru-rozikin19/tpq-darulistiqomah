@@ -32,6 +32,15 @@ class Santri extends Model
         ];
     }
 
+    protected static function booted()
+    {
+        static::deleting(function ($santri) {
+            $santri->sppPayments->each(function ($payment) {
+                $payment->delete();
+            });
+        });
+    }
+
     public function sppPayments(): HasMany
     {
         return $this->hasMany(SppPayment::class);

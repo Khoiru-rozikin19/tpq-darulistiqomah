@@ -172,24 +172,8 @@ class SppController extends Controller
     public function destroy($id)
     {
         $payment = SppPayment::findOrFail($id);
-        $santriName = $payment->santri->nama;
 
-        // Try to find and delete the corresponding KAS record
-        $namaBulan = [
-            1 => 'Januari', 2 => 'Februari', 3 => 'Maret',
-            4 => 'April', 5 => 'Mei', 6 => 'Juni',
-            7 => 'Juli', 8 => 'Agustus', 9 => 'September',
-            10 => 'Oktober', 11 => 'November', 12 => 'Desember',
-        ][$payment->bulan];
-
-        $kasDescription = "Penerimaan SPP {$namaBulan} a.n {$santriName}";
-
-        Kas::where('kategori', 'SPP')
-            ->where('nominal', $payment->nominal)
-            ->where('keterangan', 'like', "%{$kasDescription}%")
-            ->delete();
-
-        // Delete payment
+        // Delete payment (deleting event on model deletes corresponding KAS record)
         $payment->delete();
 
         return redirect()->route('spp.index')

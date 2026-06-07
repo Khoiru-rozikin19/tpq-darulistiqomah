@@ -17,6 +17,11 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Prevent duplicate seeding if database already has users
+        if (User::where('email', 'admin@darulistiqomah.com')->exists()) {
+            return;
+        }
+
         // 1. Seed Users
         $admin = User::create([
             'name' => 'Admin TU',

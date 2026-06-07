@@ -293,7 +293,13 @@ if [[ ! -f "${APP_DIR}/artisan" ]]; then
     if [[ -f "${SCRIPT_DIR}/artisan" ]]; then
         info "Mendeteksi project di ${SCRIPT_DIR}, menyalin ke ${APP_DIR}..."
         mkdir -p "${APP_DIR}"
-        rsync -a --exclude='node_modules' --exclude='vendor' --exclude='.env' "${SCRIPT_DIR}/" "${APP_DIR}/"
+        rsync -a \
+            --exclude='node_modules' \
+            --exclude='vendor' \
+            --exclude='.env' \
+            --exclude='database/database.sqlite' \
+            --exclude='database/database.sqlite-journal' \
+            "${SCRIPT_DIR}/" "${APP_DIR}/"
     else
         error "File artisan tidak ditemukan di ${APP_DIR}. Pastikan project sudah di-upload/clone ke ${APP_DIR} terlebih dahulu."
     fi
