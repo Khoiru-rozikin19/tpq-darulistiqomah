@@ -170,3 +170,34 @@ test('deleting spp payment after student name change still deletes corresponding
         'keterangan' => 'Penerimaan SPP Juni a.n Original Name (NIS: 11111)',
     ]);
 });
+
+test('artisan kas:clean-orphans command deletes orphan kas entries', function () {
+    $user = User::factory()->create(['role' => 'admin_tu']);
+    
+    // Create a Kas SPP entry that has no corresponding SppPayment (orphan)
+    Kas::create([
+        'tanggal' => '2026-06-07',
+        'jenis' => 'masuk',
+        'kategori' => 'SPP',
+        'keterangan' => 'Penerimaan SPP Juni a.n Santri Fiktif (NIS: 99999)',
+        'nominal' => 20000,
+        'user_id' => $user->id,
+    ]);
+
+    // Assert the orphan Kas exists
+    $this->assertDatabaseHas('kas', [
+        'kategori' => 'SPP',
+        'keterangan' => 'Penerimaan SPP Juni a.n Santri Fiktif (NIS: 99999)',
+    ]);
+
+    // Run clean orphans command
+    $this->artisan('kas:clean-orphans')
+         ->expectsOutput('Memulai pembersihan transaksi Kas SPP yang yatim/orphan...')
+         ->assertExitCode(0);
+
+    // Assert the orphan Kas is deleted
+    $this->assertDatabaseMissing('kas', [
+        'kategori' => 'SPP',
+        'keterangan' => 'Penerimaan SPP Juni a.n Santri Fiktif (NIS: 99999)',
+    ]);
+});
